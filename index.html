@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Ashfall — Survive the Night of Cinders</title>
+<meta name="description" content="A dark gothic horde-survival game. Pick a class, survive ten minutes of the endless dead.">
+<meta name="theme-color" content="#0b0706">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preload" href="fonts/cinzel.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head><body>
+<canvas id="cv"></canvas>
+<div id="hud" class="hidden">
+  <div id="timer">00:00</div>
+  <div id="kills"><span>☠</span> <b id="killN">0</b></div>
+  <button id="pause" aria-label="Pause">❚❚</button>
+</div>
+<button id="mute" aria-label="Toggle sound">♪</button>
+<div id="banner"></div>
+
+<section id="title" class="screen show">
+  <div class="frame">
+    <div class="sigil">✠</div>
+    <h1>ASHFALL</h1>
+    <p class="sub">Survive the Night of Cinders</p>
+    <p class="lore">The cathedral bells have stopped. The dead climb from the crypts.<br>Hold the nave for ten minutes — then face what wakes beneath.</p>
+    <button class="btn big" id="btnBegin">Enter the Crypt</button>
+    <p class="hint">Drag anywhere to move · WASD / arrows · weapons fire on their own</p>
+  </div>
+</section>
+
+<section id="classes" class="screen">
+  <h2>Choose Your Vigil</h2>
+  <div id="classGrid"></div>
+  <button class="btn ghost" id="btnBack">Back</button>
+</section>
+
+<section id="levelup" class="screen">
+  <h2 id="luTitle">Level Up</h2>
+  <p class="sub" id="luSub">Choose a blessing</p>
+  <div id="choices"></div>
+</section>
+
+<section id="paused" class="screen">
+  <div class="frame"><h2>Paused</h2><div id="loadout"></div>
+  <button class="btn big" id="btnResume">Resume</button><button class="btn ghost" id="btnQuit">Abandon Run</button></div>
+</section>
+
+<section id="result" class="screen">
+  <div class="frame wide">
+    <h2 id="resTitle">Fallen</h2>
+    <p class="sub" id="resSub"></p>
+    <div id="resStats"></div>
+    <img id="card" alt="Result card">
+    <div class="row"><button class="btn" id="btnShare">Share Card</button><button class="btn big" id="btnRetry">Rise Again</button></div>
+    <button class="btn ghost" id="btnClass">Change Class</button>
+  </div>
+</section>
+<script src="game.js"></script>
+</body></html>
