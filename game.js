@@ -150,7 +150,7 @@ const CLASSES = {
     w: { arrow: 3, spear: 2.6, holy: 2, dagger: 1.2, magnet: 1.6, speed: 1.5, might: 1.5 } },
 };
 const WEAP = {
-  arc: { name: 'Cleaving Arc', ic: '⚔', c: '#8a2a1a', cd: 1.15, d: 'Sweep a heavy blade through foes in front.', up: ['+30% damage', '+25% arc width', '-15% cooldown', 'Strikes twice'], evo: 'might', evoName: 'Executioner\'s Wheel' },
+  arc: { name: 'Cleaving Arc', ic: '⚔', c: '#8a2a1a', cd: .95, d: 'Sweep a heavy blade through foes in front.', up: ['+30% damage', '+25% arc width', '-15% cooldown', 'Strikes twice'], evo: 'might', evoName: 'Executioner\'s Wheel' },
   dagger: { name: 'Throwing Daggers', ic: '🗡', c: '#5a2a7a', cd: .6, d: 'Hurl daggers at the nearest foe. Can crit.', up: ['+1 dagger', '+30% damage', '+1 dagger', '+1 pierce, -15% cooldown'], evo: 'cooldown', evoName: 'Fan of a Thousand Cuts' },
   fire: { name: 'Fire Bolt', ic: '☄', c: '#b0401a', cd: 1.3, d: 'A bolt that bursts into flame on impact.', up: ['+30% damage', '+1 bolt', '+25% blast radius', '+1 bolt'], evo: 'area', evoName: 'Inferno' },
   arrow: { name: 'Piercing Arrows', ic: '➶', c: '#4a6a1a', cd: .85, d: 'Arrows that pierce through the ranks.', up: ['+1 arrow', '+2 pierce', '+30% damage', '+1 arrow, -15% cooldown'], evo: 'speed', evoName: 'Storm of Arrows' },
@@ -196,9 +196,9 @@ function wlv(id) { const w = S.weapons.find(w => w.id === id); return w ? w.lvl 
 
 /* ---------------- spawning ---------------- */
 function spawn(kind, x, y) { const e = take(E); if (!e) return null; const m = MON[kind], tm = S.t / 60;
-  const hpMul = (1 + tm * .38 + tm * tm * .035) * (m.boss ? 1 + S.bossIdx * .9 : 1);
-  if (x == null) { const a = Math.random() * TAU, R = Math.hypot(W, H) / Z / 2 + 40; x = P.x + Math.cos(a) * R; y = P.y + Math.sin(a) * R; }
-  Object.assign(e, { kind, x, y, vx: 0, vy: 0, hp: m.hp * hpMul, max: m.hp * hpMul, sp: m.sp * (1 + Math.min(.35, tm * .03)) * rnd(.9, 1.1), dmg: m.dmg * (1 + tm * .08), r: m.r, xp: m.xp, elite: !!m.elite, boss: !!m.boss, flash: 0, f: Math.random() * 2, kb: 0, shootT: 3, slow: 0 });
+  const hpMul = m.boss ? (1 + S.bossIdx) * (1 + tm * .15) : 1 + tm * .26 + tm * tm * .03;
+  if (x == null) { const hw = W / Z / 2 + 30, hh = H / Z / 2 + 40, a = Math.random() * TAU, c = Math.cos(a), sn = Math.sin(a), k = Math.min(hw / Math.abs(c || 1e-6), hh / Math.abs(sn || 1e-6)); x = P.x + c * k; y = P.y + sn * k; }
+  Object.assign(e, { kind, x, y, vx: 0, vy: 0, hp: m.hp * hpMul, max: m.hp * hpMul, sp: m.sp * (1 + Math.min(.35, tm * .03)) * rnd(.9, 1.1), dmg: m.dmg * (1 + tm * .08), r: m.r, xp: m.xp, elite: !!m.elite, boss: !!m.boss, flash: 0, f: Math.random() * 2, kb: 0, shootT: 3, slow: 0, final: false });
   return e; }
 function spawner(dt) {
   const tm = S.t / 60, live = E.reduce((n, e) => n + (e.on ? 1 : 0), 0);
@@ -210,7 +210,7 @@ function spawner(dt) {
     for (let i = 0; i < n; i++) { const a = a0 + i / n * TAU; spawn(tm > 3 ? 'ghoul' : 'skel', P.x + Math.cos(a) * R, P.y + Math.sin(a) * R); } banner('THE DEAD SURGE', ''); }
   if (S.t >= S.nextElite) { S.nextElite += Math.max(35, 60 - tm * 3); spawn('brute'); }
   if (S.bossIdx < BOSSES.length && S.t >= BOSSES[S.bossIdx]) { S.boss = spawn('boss'); S.bossIdx++; banner('A FIEND AWAKENS', 'Slay it for a reliquary'); sfx.boss(); }
-  if (!S.finalBoss && S.t >= GOAL) { S.finalBoss = true; S.bossIdx = 4; const b = spawn('boss'); if (b) { b.hp = b.max = 26000; b.final = true; b.r = 44; S.boss = b; } banner('THE ASH LORD RISES', 'Destroy him to end the night'); sfx.boss(); }
+  if (!S.finalBoss && S.t >= GOAL) { S.finalBoss = true; S.bossIdx = 4; const b = spawn('boss'); if (b) { b.hp = b.max = clamp(S.dmgDealt / S.t * 50, 6000, 20000); b.final = true; b.r = 44; S.boss = b; } banner('THE ASH LORD RISES', 'Destroy him to end the night'); sfx.boss(); }
 }
 
 /* ---------------- combat ---------------- */
@@ -218,25 +218,25 @@ function fx(o) { const f = take(FX); if (f) Object.assign(f, { vx: 0, vy: 0, r: 
 function bullet(o) { const b = take(B); if (b) Object.assign(b, { pierce: 0, life: 1.6, r: 6, hit: null, boom: 0, crit: 0, home: 0, kind: 'bolt', spin: 0 }, o, { on: true }); if (b) b.hit = b.hit || new Set(); else return null; b.hit.clear(); return b; }
 function hurt(e, dmg, kx = 0, ky = 0, canCrit = false) { if (!e.on) return; let crit = false;
   if (canCrit && Math.random() < P.crit) { dmg *= 2.4; crit = true; }
-  dmg *= P.might; e.hp -= dmg; e.flash = .08; S.dmgDealt += dmg; if (!e.boss) { e.vx += kx; e.vy += ky; }
+  dmg *= P.might; S.dmgDealt += Math.min(dmg, Math.max(0, e.hp)); e.hp -= dmg; e.flash = .08; if (!e.boss) { e.vx += kx; e.vy += ky; }
   if (crit) fx({ t: 'txt', x: e.x, y: e.y - 30, s: 'CRIT', c: '#f0d58a', life: .5, max: .5, vy: -40 });
   sfx.hit(); if (e.hp <= 0) kill(e); }
 function kill(e) { e.on = false; S.kills++; sfx.kill();
   for (let i = 0; i < (e.boss ? 40 : 5); i++) fx({ x: e.x + rnd(-6, 6), y: e.y - 10, vx: rnd(-90, 90), vy: rnd(-120, 20), g: 260, r: rnd(1.5, 3.5), c: e.kind === 'skel' ? '#cfc6b0' : '#7a120c', life: rnd(.3, .6) });
   fx({ t: 'decal', x: e.x, y: e.y, r: e.r * rnd(.8, 1.3), c: e.kind === 'skel' ? 'rgba(160,150,130,.25)' : 'rgba(90,8,5,.45)', life: 8, max: 8 });
-  if (e.boss) { S.chests.push({ x: e.x, y: e.y, big: true }); S.boss = null; if (e.final) { S.won = true; setTimeout(() => endRun(true), 1200); } shake(14); }
+  if (e.boss) { S.chests.push({ x: e.x, y: e.y, big: true }); if (S.boss === e) S.boss = null; if (e.final) { S.won = true; setTimeout(() => endRun(true), 1200); } shake(14); }
   else if (e.elite) S.chests.push({ x: e.x, y: e.y });
-  else if (Math.random() < .012) S.potions.push({ x: e.x, y: e.y });
+  else if (S.potions.length < 4 && Math.random() < .012) S.potions.push({ x: e.x, y: e.y });
   dropGem(e.x, e.y, e.xp * (e.boss ? 10 : 1)); }
 function dropGem(x, y, v) { let g = take(GEM);
   if (!g) { let best = null, bd = 1e18; for (const q of GEM) { const d = (q.x - x) ** 2 + (q.y - y) ** 2; if (d < bd) { bd = d; best = q; } } if (best) best.v += v; return; }
   Object.assign(g, { x: x + rnd(-6, 6), y: y + rnd(-6, 6), v, pull: false }); }
 function shake(v) { S.shake = Math.max(S.shake, v); }
 const WFIRE = {
-  arc(w, L, ev) { const R = 82 * P.area * (L >= 2 ? 1.25 : 1) * (ev ? 1.25 : 1), span = ev ? TAU : 2.3 * (L >= 3 ? 1.25 : 1), dmg = (16 + (L >= 2 ? 6 : 0) + (L >= 5 ? 6 : 0)) * (ev ? 1.7 : 1), a0 = Math.atan2(P.ay, P.ax);
-    const go = (delay, a) => setTimeout(() => { if (!S || S.state === 'over') return; fx({ t: 'arc', x: P.x, y: P.y - 14, r: R, a, span, life: .22, max: .22, c: ev ? '#ffcf6a' : '#e8e0d0' }); sfx.shoot();
-      near(P.x, P.y, R + 20, e => { const dx = e.x - P.x, dy = e.y - P.y, d = Math.hypot(dx, dy); if (d > R + e.r) return; let da = Math.abs(((Math.atan2(dy, dx) - a) % TAU + TAU * 1.5) % TAU - Math.PI); if (span < TAU && da > span / 2) return; hurt(e, dmg, dx / d * 160, dy / d * 160); }); }, delay);
-    go(0, a0); if (L >= 5) go(180, a0 + Math.PI); },
+  arc(w, L, ev) { const R = 92 * P.area * (L >= 2 ? 1.25 : 1) * (ev ? 1.25 : 1), span = ev ? TAU : 2.6 * (L >= 3 ? 1.25 : 1), dmg = (22 + (L >= 2 ? 7 : 0) + (L >= 5 ? 8 : 0)) * (ev ? 1.7 : 1), a0 = (t => t ? Math.atan2(t.y - P.y, t.x - P.x) : Math.atan2(P.ay, P.ax))(nearest(P.x, P.y, R * 1.8));
+    const go = a => { fx({ t: 'arc', x: P.x, y: P.y - 14, r: R, a, span, life: .22, max: .22, c: ev ? '#ffcf6a' : '#e8e0d0' }); sfx.shoot();
+      near(P.x, P.y, R + 20, e => { const dx = e.x - P.x, dy = e.y - P.y, d = Math.hypot(dx, dy); if (d > R + e.r) return; let da = Math.abs(((Math.atan2(dy, dx) - a) % TAU + TAU * 1.5) % TAU - Math.PI); if (span < TAU && da > span / 2) return; hurt(e, dmg, dx / d * 160, dy / d * 160); }); };
+    if (w.again) { w.again = 0; go(a0 + Math.PI); return; } go(a0); if (L >= 5) { w.again = 1; w.t = .18; return true; } },
   dagger(w, L, ev) { const n = 1 + (L >= 2) + (L >= 4) + P.proj + (ev ? 4 : 0), t = nearest(P.x, P.y, 420); const base = t ? Math.atan2(t.y - P.y, t.x - P.x) : Math.atan2(P.ay, P.ax);
     for (let i = 0; i < n; i++) { const a = base + (i - (n - 1) / 2) * (ev ? .22 : .12); bullet({ kind: 'dagger', x: P.x, y: P.y - 16, vx: Math.cos(a) * 560, vy: Math.sin(a) * 560, dmg: (8 + (L >= 3 ? 3 : 0)) * (ev ? 1.4 : 1), crit: 1, pierce: (L >= 5 ? 1 : 0) + (ev ? 2 : 0), life: .8, r: 6 }); } sfx.shoot(); },
   fire(w, L, ev) { const n = 1 + (L >= 3) + (L >= 5) + (ev ? 1 : 0); for (let i = 0; i < n; i++) { const t = nearest(P.x, P.y, 460) ; const a = t ? Math.atan2(t.y - P.y, t.x - P.x) + (i ? rnd(-.5, .5) : 0) : rnd(0, TAU);
@@ -265,7 +265,7 @@ function updWeapons(dt) {
       for (const [e, tt] of w.hits) { if (tt - dt <= 0 || !e.on) w.hits.delete(e); else w.hits.set(e, tt - dt); }
       for (let i = 0; i < n; i++) { const a = w.ang + i / n * TAU, bx = P.x + Math.cos(a) * R, by = P.y - 12 + Math.sin(a) * R * .6;
         near(bx, by, 24, e => { if (w.hits.has(e)) return; if ((e.x - bx) ** 2 + (e.y - 10 - by) ** 2 < (e.r + 12) ** 2) { w.hits.set(e, .45); hurt(e, dmg, Math.cos(a) * 60, Math.sin(a) * 60); } }); } continue; }
-    w.t -= dt; if (w.t <= 0) { w.t = cdOf(w); WFIRE[w.id](w, w.lvl, w.evo); } }
+    w.t -= dt; if (w.t <= 0) { const keep = WFIRE[w.id](w, w.lvl, w.evo); if (!keep) w.t = cdOf(w); } }
 }
 function updBullets(dt) {
   for (const b of B) { if (!b.on) continue; b.life -= dt; if (b.life <= 0) { b.on = false; if (b.boom) boom(b); continue; }
@@ -294,7 +294,7 @@ function options() { const C = CLASSES[CLS], opts = [], wt = id => (C.w[id] || 1
   const out = []; while (out.length < 3 && opts.length) { let s = opts.reduce((a, o) => a + o.w, 0), r = Math.random() * s, i = 0; for (; i < opts.length - 1; i++) { r -= opts[i].w; if (r <= 0) break; } out.push(opts.splice(i, 1)[0]); }
   if (!out.length) out.push({ k: 'heal' }); return out; }
 function applyOpt(o) {
-  if (o.k === 'w') { const w = S.weapons.find(w => w.id === o.id); if (w) w.lvl++; else addWeapon(o.id); }
+  if (o.k === 'w') { const w = S.weapons.find(w => w.id === o.id); if (w) { if (w.lvl < 5) w.lvl++; else P.hp = Math.min(P.maxhp, P.hp + 20); } else if (S.weapons.length < 6) addWeapon(o.id); }
   else if (o.k === 'p') { S.passives[o.id] = (S.passives[o.id] || 0) + 1; const id = o.id;
     if (id === 'speed') P.speed *= 1.1; if (id === 'might') P.might += .12; if (id === 'area') P.area += .12; if (id === 'cooldown') P.cdm *= .92; if (id === 'magnet') P.magnet *= 1.3; if (id === 'armor') P.armor += 1; if (id === 'maxhp') { P.maxhp += 20; P.hp += 20; } if (id === 'regen') P.regen += .4; }
   else P.hp = Math.min(P.maxhp, P.hp + P.maxhp * .4); }
@@ -484,4 +484,4 @@ function frame(now) { requestAnimationFrame(frame); let dt = Math.min(.05, (now 
   render(now); }
 resize(); buildFloor(); buildSprites(); requestAnimationFrame(frame);
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
-window.__g = { get S() { return S; }, get P() { return P; }, E, newRun, update, sim(sec) { for (let i = 0; i < sec * 60 && S.state !== 'over'; i++) { if (S.state === 'level') { applyOpt(S.opts[0]); S.pendingLv--; S.state = 'play'; if (S.pendingLv > 0) openLevelUp(); else showScreen(null); continue; } update(1 / 60); } } };
+window.__g = { get S() { return S; }, get P() { return P; }, E, newRun, update, spawn, gainXP, sim(sec) { for (let i = 0; i < sec * 60 && S.state !== 'over'; i++) { if (S.state === 'level') { applyOpt(S.opts[0]); S.pendingLv--; S.state = 'play'; if (S.pendingLv > 0) openLevelUp(); else showScreen(null); continue; } update(1 / 60); } } };
